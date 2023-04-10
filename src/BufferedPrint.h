@@ -36,7 +36,7 @@
  * \class BufferedPrint
  * \brief Fast buffered print template.
  */
-template <typename WriteClass, uint8_t BUF_DIM>
+template <typename WriteClass, uint16_t BUF_DIM>
 class BufferedPrint {
  public:
   BufferedPrint() : m_wr(nullptr), m_in(0) {}
@@ -263,7 +263,7 @@ class BufferedPrint {
 
  private:
   WriteClass* m_wr;
-  uint8_t m_in;
+  uint16_t m_in;
   // Insure room for double.
   uint8_t m_buf[BUF_DIM < 24 ? 24 : BUF_DIM];  // NOLINT
 };
