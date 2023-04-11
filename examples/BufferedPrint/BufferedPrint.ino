@@ -4,6 +4,9 @@
 #include "BufferedPrint.h"
 #include "SdFat.h"
 
+#define SDCARD_SS_PIN PA4
+#define ENABLE_DEDICATED_SPI 1
+
 // SD_FAT_TYPE = 0 for SdFat/File as defined in SdFatConfig.h,
 // 1 for FAT16/FAT32, 2 for exFAT, 3 for FAT16/FAT32 and exFAT.
 #define SD_FAT_TYPE 0
@@ -31,7 +34,8 @@ const uint8_t SD_CS_PIN = SDCARD_SS_PIN;
 #if HAS_SDIO_CLASS
 #define SD_CONFIG SdioConfig(FIFO_SDIO)
 #elif ENABLE_DEDICATED_SPI
-#define SD_CONFIG SdSpiConfig(SD_CS_PIN, DEDICATED_SPI, SPI_CLOCK)
+static SPIClass SDSPI1(PA7, PA6, PA5, SDCARD_SS_PIN);
+#define SD_CONFIG SdSpiConfig(SD_CS_PIN, DEDICATED_SPI, SPI_CLOCK, &SDSPI1)
 #else  // HAS_SDIO_CLASS
 #define SD_CONFIG SdSpiConfig(SD_CS_PIN, SHARED_SPI, SPI_CLOCK)
 #endif  // HAS_SDIO_CLASS
@@ -60,7 +64,7 @@ void benchmark() {
   BufferedPrint<file_t, 64> bp;
   // do write test
   Serial.println();
-  for (int test = 0; test < 6; test++) {
+  for (int test = 0; test < 8; test++) {
     char fileName[13] = "bench0.txt";
     fileName[5] = '0' + test;
     // open or create file - truncate existing file.
@@ -113,9 +117,23 @@ void benchmark() {
           bp.printField((double)0.01 * i, '\n');
         }
         break;
+
+      case 6:
+        Serial.println(F("Test of println(string)"));
+        for (uint16_t i = 0; i < N_PRINT; i++) {
+          file.println("This is a test of how the system handles large text strings.");
+        }
+        break;
+
+      case 7:
+        Serial.println(F("Test of printField(string)"));
+        for (uint16_t i = 0; i < N_PRINT; i++) {
+          bp.printField("This is a test of how the system handles large text strings.", '\n');
+        }
+        break;
     }
     if (test & 1) {
-      bp.sync();
+    bp.sync();
     }
     if (file.getWriteError()) {
       sd.errorHalt(&Serial, F("write failed"));
@@ -220,6 +238,7 @@ void setup() {
   Serial.println("Type any character to begin.");
   while (!Serial.available()) {
   }
+  delay(2000);
   if (!sd.begin(SD_CONFIG)) {
     sd.initErrorHalt(&Serial);
   }
@@ -228,7 +247,7 @@ void setup() {
   testMemberFunctions();
   Serial.println();
   Serial.println(
-      F("Benchmark performance for uint16_t, uint32_t, and double:"));
+      F("Benchmark performance for uint16_t, uint32_t, double, and float:"));
   benchmark();
   Serial.println("Done");
 }

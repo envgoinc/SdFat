@@ -209,7 +209,7 @@ class BufferedPrint {
    * \param[in] prec Number of digits after decimal point.
    * \return true for success or false if an error occurs.
    */
-  size_t println(float f, uint8_t prec) {
+  size_t println(float f, uint8_t prec = 2) {
     return printField(static_cast<double>(f), '\n', prec);
   }
   /** Print character, string, or number.
