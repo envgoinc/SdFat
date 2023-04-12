@@ -13,6 +13,9 @@
 #include "SdFat.h"
 #include "sdios.h"
 
+#define SDCARD_SS_PIN PA4
+#define ENABLE_DEDICATED_SPI 1
+
 /*
   Set DISABLE_CS_PIN to disable a second SPI device.
   For example, with the Ethernet shield, set DISABLE_CS_PIN
@@ -43,7 +46,8 @@ const uint8_t SD_CS_PIN = SDCARD_SS_PIN;
 #if HAS_SDIO_CLASS
 #define SD_CONFIG SdioConfig(FIFO_SDIO)
 #elif ENABLE_DEDICATED_SPI
-#define SD_CONFIG SdSpiConfig(SD_CS_PIN, DEDICATED_SPI, SPI_CLOCK)
+static SPIClass SDSPI1(PA7, PA6, PA5, SDCARD_SS_PIN);
+#define SD_CONFIG SdSpiConfig(SD_CS_PIN, DEDICATED_SPI, SPI_CLOCK, &SDSPI1)
 #else  // HAS_SDIO_CLASS
 #define SD_CONFIG SdSpiConfig(SD_CS_PIN, SHARED_SPI, SPI_CLOCK)
 #endif  // HAS_SDIO_CLASS
@@ -128,9 +132,12 @@ void formatCard() {
   FatFormatter fatFormatter;
 
   // Format exFAT if larger than 32GB.
+  /*
   bool rtn = cardSectorCount > 67108864
                  ? exFatFormatter.format(m_card, sectorBuffer, &Serial)
                  : fatFormatter.format(m_card, sectorBuffer, &Serial);
+  */
+  bool rtn = exFatFormatter.format(m_card, sectorBuffer, &Serial);
 
   if (!rtn) {
     sdErrorHalt();
@@ -170,6 +177,8 @@ void setup() {
   while (!Serial.available()) {
     yield();
   }
+  delay(2000);
+
   // Discard any extra characters.
   clearSerialInput();
 
@@ -218,6 +227,7 @@ void setup() {
   cout << F(" GiB (GiB = 2^30 bytes)\n");
 
   cout << F("Card will be formated ");
+  /*
   if (cardSectorCount > 67108864) {
     cout << F("exFAT\n");
   } else if (cardSectorCount > 4194304) {
@@ -225,6 +235,9 @@ void setup() {
   } else {
     cout << F("FAT16\n");
   }
+  */
+  cout << F("exFAT\n");
+
   cout << F(
       "\n"
       "Options are:\n"

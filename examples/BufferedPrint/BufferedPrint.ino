@@ -57,11 +57,11 @@ typedef FsFile file_t;
 #endif  // SD_FAT_TYPE
 
 // number of lines to print
-const uint16_t N_PRINT = 20000;
+const uint16_t N_PRINT = 50000;
 //------------------------------------------------------------------------------
 void benchmark() {
   file_t file;
-  BufferedPrint<file_t, 64> bp;
+  BufferedPrint<file_t, 512> bp;
   // do write test
   Serial.println();
   for (int test = 0; test < 8; test++) {
@@ -133,7 +133,7 @@ void benchmark() {
         break;
     }
     if (test & 1) {
-    bp.sync();
+      bp.sync();
     }
     if (file.getWriteError()) {
       sd.errorHalt(&Serial, F("write failed"));
@@ -153,6 +153,101 @@ void benchmark() {
     Serial.println();
   }
 }
+
+void benchmark_preallocate() {
+  file_t file1, file2;
+  BufferedPrint<file_t, 512> bp1, bp2;
+
+  for (int test = 0; test < 2; test++) {
+    char fileName[20] = "bench_pre00.txt";
+    uint32_t max_time, delta;
+
+    max_time = 0;
+
+    fileName[9] = '0' + test;
+    // open or create file - truncate existing file.
+    if (!file1.open(fileName, O_RDWR | O_CREAT | O_TRUNC)) {
+      sd.errorHalt(&Serial, F("open1 failed"));
+    }
+    fileName[9] = '0' + test;
+    fileName[10] = '1';
+    // open or create file - truncate existing file.
+    if (!file2.open(fileName, O_RDWR | O_CREAT | O_TRUNC)) {
+      sd.errorHalt(&Serial, F("open2 failed"));
+    }
+
+    if(test == 1) {
+      file1.preAllocate(40 * 1000 * 1000);
+      file2.preAllocate(40 * 1000 * 1000);
+    }
+
+    bp1.begin(&file1);
+    bp2.begin(&file2);
+
+    if(test == 0) {
+      Serial.println(F("Test of println no preallocate"));
+    } else {
+      Serial.println(F("Test of println with preallocate"));
+    }
+
+    uint32_t t = millis();
+
+    for (uint16_t i = 0; i < N_PRINT; i++) {
+      uint32_t t0 = micros();
+      bp1.println("This is a test of how the system handles large text strings.");
+      delta = micros() - t0;
+      if(delta > max_time) {
+        max_time = delta;
+      }
+    }
+
+    for (uint16_t i = 0; i < N_PRINT; i++) {
+      uint32_t t0 = micros();
+      bp2.println("This is a test of how the system handles large text strings.");
+      delta = micros() - t0;
+      if(delta > max_time) {
+        max_time = delta;
+      }
+    }
+    uint32_t t0 = micros();
+    bp1.sync();
+    delta = micros() - t0;
+    if(delta > max_time) {
+      max_time = delta;
+    }
+    t0 = micros();
+    bp2.sync();
+    delta = micros() - t0;
+    if(delta > max_time) {
+      max_time = delta;
+    }
+
+    if (file1.getWriteError()) {
+      sd.errorHalt(&Serial, F("write failed"));
+    }
+    if (file2.getWriteError()) {
+      sd.errorHalt(&Serial, F("write failed"));
+    }
+    double s = file1.fileSize();
+    file1.close();
+    file2.close();
+    t = millis() - t;
+    Serial.print(F("Time "));
+    Serial.print(0.001 * t, 3);
+    Serial.println(F(" sec"));
+    Serial.print(F("File size "));
+    Serial.print(0.001 * s);
+    Serial.println(F(" KB"));
+    Serial.print(F("Write "));
+    Serial.print(s / t);
+    Serial.println(F(" KB/sec"));
+    Serial.println(F("Max time for print/sync"));
+    Serial.print(max_time);
+    Serial.println(F(" microseconds"));
+    Serial.println();
+  }
+}
+
 //------------------------------------------------------------------------------
 void testMemberFunctions() {
   BufferedPrint<Print, 32> bp(&Serial);
@@ -249,6 +344,8 @@ void setup() {
   Serial.println(
       F("Benchmark performance for uint16_t, uint32_t, double, and float:"));
   benchmark();
+  Serial.println(F("Test preallocate"));
+  benchmark_preallocate();
   Serial.println("Done");
 }
 //------------------------------------------------------------------------------
